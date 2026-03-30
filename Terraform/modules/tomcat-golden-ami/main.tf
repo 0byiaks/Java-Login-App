@@ -99,14 +99,14 @@ resource "null_resource" "stop_instance" {
 resource "aws_ami_from_instance" "tomcat_golden_ami" {
   depends_on = [null_resource.stop_instance]
 
-  name                = "${var.environment}-${var.project_name}-tomcat-golden-ami-${formatdate("YYYYMMDD", timestamp())}"
+  name                = "${var.environment}-${var.project_name}-tomcat-golden-ami-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description         = "Tomcat Golden AMI with JDK 11, Tomcat, and MySQL client installed. Created on ${timestamp()}"
   source_instance_id  = aws_instance.tomcat_golden_ami_builder.id
 
   tags = {
     Name        = "${var.environment}-${var.project_name}-tomcat-golden-ami"
     Role        = "tomcat"
-    Version     = formatdate("YYYYMMDD", timestamp())
+    Version     = formatdate("YYYYMMDDhhmmss", timestamp())
     Environment = var.environment
     Project     = var.project_name
   }

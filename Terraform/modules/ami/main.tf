@@ -36,52 +36,67 @@ resource "aws_iam_role" "ami_builder_role" {
   }
 }
 
-# IAM Policy for SSM, CloudWatch, and EC2
+locals {
+  ami_builder_secrets_statement = length(var.secretsmanager_secret_arns) > 0 ? [
+    {
+      Effect = "Allow"
+      Action = [
+        "secretsmanager:GetSecretValue"
+      ]
+      Resource = var.secretsmanager_secret_arns
+    }
+  ] : []
+}
+
+# IAM Policy for SSM, CloudWatch, EC2, S3, and optional Secrets Manager
 resource "aws_iam_role_policy" "ami_builder_policy" {
   name = "${var.environment}-${var.project_name}-ami-builder-policy"
   role = aws_iam_role.ami_builder_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:UpdateInstanceInformation",
-          "ssmmessages:CreateControlChannel",
-          "ssmmessages:CreateDataChannel",
-          "ssmmessages:OpenControlChannel",
-          "ssmmessages:OpenDataChannel"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "cloudwatch:PutMetricData",
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogStreams"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:DescribeVolumes",
-          "ec2:DescribeTags"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject"
-        ]
-        Resource = "arn:aws:s3:::project-artifacts-prod/*"
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "ssm:UpdateInstanceInformation",
+            "ssmmessages:CreateControlChannel",
+            "ssmmessages:CreateDataChannel",
+            "ssmmessages:OpenControlChannel",
+            "ssmmessages:OpenDataChannel"
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "cloudwatch:PutMetricData",
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+            "logs:DescribeLogStreams"
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "ec2:DescribeVolumes",
+            "ec2:DescribeTags"
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject"
+          ]
+          Resource = "arn:aws:s3:::project-artifacts-prod/*"
+        }
+      ],
+      local.ami_builder_secrets_statement
+    )
   })
 }
 
@@ -170,13 +185,13 @@ resource "null_resource" "stop_instance" {
 resource "aws_ami_from_instance" "base_ami" {
   depends_on = [null_resource.stop_instance]
 
-  name                = "${var.environment}-${var.project_name}-global-base-ami-${formatdate("YYYYMMDD", timestamp())}"
+  name                = "${var.environment}-${var.project_name}-global-base-ami-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description         = "Global Base AMI with Amazon Linux 2, CloudWatch Agent, and SSM Agent configured. Created on ${timestamp()}"
   source_instance_id  = aws_instance.ami_builder.id
 
   tags = {
     Name        = "${var.environment}-${var.project_name}-global-base-ami"
-    Version     = formatdate("YYYYMMDD", timestamp())
+    Version     = formatdate("YYYYMMDDhhmmss", timestamp())
     Environment = var.environment
     Project     = var.project_name
   }

@@ -10,9 +10,10 @@ resource "aws_launch_template" "tomcat_lt" {
     name = var.iam_instance_profile_name
   }
 
-  # User Data Script
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    s3_bucket = var.s3_bucket
+    aws_region                    = var.aws_region
+    secret_id                     = var.app_secrets_manager_secret_id
+    jfrog_war_url                 = var.jfrog_war_url
   }))
 
   tag_specifications {

@@ -99,14 +99,14 @@ resource "null_resource" "stop_instance" {
 resource "aws_ami_from_instance" "nginx_golden_ami" {
   depends_on = [null_resource.stop_instance]
 
-  name                = "${var.environment}-${var.project_name}-nginx-golden-ami-${formatdate("YYYYMMDD", timestamp())}"
+  name                = "${var.environment}-${var.project_name}-nginx-golden-ami-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description         = "Nginx Golden AMI with Nginx installed and configured. Created on ${timestamp()}"
   source_instance_id  = aws_instance.nginx_golden_ami_builder.id
 
   tags = {
     Name        = "${var.environment}-${var.project_name}-nginx-golden-ami"
     Role        = "nginx"
-    Version     = formatdate("YYYYMMDD", timestamp())
+    Version     = formatdate("YYYYMMDDhhmmss", timestamp())
     Environment = var.environment
     Project     = var.project_name
   }

@@ -35,3 +35,8 @@ variable "aws_region" {
   type        = string
 }
 
+variable "secretsmanager_secret_arns" {
+  description = "ARNs of Secrets Manager secrets instances may read (e.g. Maven build app credentials)"
+  type        = list(string)
+  default     = []
+}

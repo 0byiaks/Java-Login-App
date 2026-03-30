@@ -42,6 +42,16 @@ output "maven_golden_ami_name" {
   value       = module.maven_golden_ami.maven_golden_ami_name
 }
 
+output "maven_build_instance_id" {
+  description = "EC2 instance ID for Maven build host"
+  value       = module.maven_build_instance.instance_id
+}
+
+output "maven_build_instance_private_ip" {
+  description = "Private IP of Maven build host (SSH via bastion)"
+  value       = module.maven_build_instance.private_ip
+}
+
 # Transit Gateway Outputs
 output "transit_gateway_id" {
   description = "ID of the Transit Gateway"

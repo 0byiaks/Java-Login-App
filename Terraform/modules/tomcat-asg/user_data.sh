@@ -1,57 +1,60 @@
 #!/bin/bash
 set -e
+exec > >(tee /var/log/tomcat-userdata.log) 2>&1
 
-# ----------------------------------------------------------------------------
-# TOMCAT INSTANCE USER DATA SCRIPT
-# This script pulls WAR file from S3 and deploys to Tomcat
-# ----------------------------------------------------------------------------
+AWS_REGION="${aws_region}"
+SECRET_ID="${secret_id}"
+JFROG_WAR_URL="${jfrog_war_url}"
+TOMCAT_WEBAPPS_DIR="/usr/share/tomcat/webapps"
 
-# ----------------------------------------------------------------------------
-# STEP 1: SET ENVIRONMENT VARIABLES
-# ----------------------------------------------------------------------------
-export S3_BUCKET="${s3_bucket}"
-export TOMCAT_WEBAPPS_DIR="/usr/share/tomcat/webapps"
+echo "Installing aws-cli, jq, curl..."
+yum install -y aws-cli jq curl
 
-echo "Environment variables set:"
-echo "  S3_BUCKET: $S3_BUCKET"
-echo "  TOMCAT_WEBAPPS_DIR: $TOMCAT_WEBAPPS_DIR"
+echo "Fetching JFrog credentials from Secrets Manager..."
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "$SECRET_ID" \
+  --region "$AWS_REGION" \
+  --query SecretString \
+  --output text)
 
-# ----------------------------------------------------------------------------
-# STEP 2: DOWNLOAD WAR FILE FROM S3
-# ----------------------------------------------------------------------------
-echo "Downloading WAR file from S3..."
-cd /tmp
-aws s3 cp s3://$S3_BUCKET/app.war /tmp/app.war || {
-  echo "Failed to download WAR file from S3"
+JFROG_USER=$(echo "$SECRET_JSON" | jq -r '.jfrogusername // empty')
+JFROG_PASS=$(echo "$SECRET_JSON" | jq -r '.jfrogpassword // empty')
+
+echo "Downloading WAR from JFrog..."
+curl -sf -u "$${JFROG_USER}:$${JFROG_PASS}" -o /tmp/app.war "$JFROG_WAR_URL" || {
+  echo "ERROR: Failed to download WAR from JFrog"
   exit 1
 }
 
-# ----------------------------------------------------------------------------
-# STEP 3: DEPLOY WAR TO TOMCAT WEBAPPS
-# ----------------------------------------------------------------------------
-echo "Deploying WAR file to Tomcat webapps directory..."
-cp /tmp/app.war $TOMCAT_WEBAPPS_DIR/ || {
-  echo "Failed to copy WAR file to webapps directory"
-  exit 1
-}
+echo "Deploying WAR to Tomcat webapps as app.war..."
+cp /tmp/app.war "$TOMCAT_WEBAPPS_DIR/app.war"
+chown tomcat:tomcat "$TOMCAT_WEBAPPS_DIR/app.war"
+rm -f /tmp/app.war
 
-# Set proper permissions
-chown tomcat:tomcat $TOMCAT_WEBAPPS_DIR/app.war
-
-# ----------------------------------------------------------------------------
-# STEP 4: RESTART TOMCAT
-# ----------------------------------------------------------------------------
-echo "Restarting Tomcat service..."
+echo "Restarting Tomcat..."
 systemctl restart tomcat
 
-# Wait for Tomcat to start
-sleep 10
+echo "Waiting for HTTP on port 8080 (up to ~2 minutes)..."
+ok=0
+for i in $(seq 1 60); do
+  if curl -s -o /dev/null --connect-timeout 2 http://127.0.0.1:8080/; then
+    echo "Tomcat is responding on port 8080 (attempt $i)"
+    ok=1
+    break
+  fi
+  echo "  ... waiting ($i/60)"
+  sleep 2
+done
 
-# Verify Tomcat is running
-systemctl status tomcat || {
-  echo "Tomcat failed to start"
+if [ "$ok" -ne 1 ]; then
+  echo "ERROR: Timed out waiting for port 8080"
+  systemctl status tomcat || true
+  exit 1
+fi
+
+systemctl is-active --quiet tomcat || {
+  echo "ERROR: Tomcat service is not active"
   exit 1
 }
 
-echo "WAR file deployed and Tomcat restarted successfully!"
-
+echo "SUCCESS: WAR deployed from JFrog, Tomcat running and port 8080 responding."

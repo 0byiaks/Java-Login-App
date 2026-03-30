@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <settings xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 http://maven.apache.org/xsd/settings-1.2.0.xsd" xmlns="http://maven.apache.org/SETTINGS/1.2.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- Do not commit real credentials. For local builds, fill in or use ~/.m2/settings.xml. CI/EC2 uses Secrets Manager. -->
+  <!-- Resolve + deploy use the same JFrog URL (libs-release-local). -->
   <servers>
     <server>
-      <username>prdevop26@gmail.com</username>
-      <password>Admin123!</password>
+      <username>REPLACE_JFROG_USERNAME</username>
+      <password>REPLACE_JFROG_PASSWORD</password>
       <id>central</id>
     </server>
     <server>
-      <username>prdevop26@gmail.com</username>
-      <password>Admin123!</password>
+      <username>REPLACE_JFROG_USERNAME</username>
+      <password>REPLACE_JFROG_PASSWORD</password>
       <id>snapshots</id>
     </server>
   </servers>
@@ -21,14 +23,14 @@
             <enabled>false</enabled>
           </snapshots>
           <id>central</id>
-          <name>libs-release</name>
-          <url>https://edshopdpt8.jfrog.io/artifactory/libs-release</url>
+          <name>libs-release-local</name>
+          <url>https://trial8hq0mq.jfrog.io/artifactory/libs-release-local</url>
         </repository>
         <repository>
           <snapshots />
           <id>snapshots</id>
-          <name>libs-snapshot</name>
-          <url>https://edshopdpt8.jfrog.io/artifactory/libs-snapshot</url>
+          <name>libs-release-local</name>
+          <url>https://trial8hq0mq.jfrog.io/artifactory/libs-release-local</url>
         </repository>
       </repositories>
       <pluginRepositories>
@@ -37,14 +39,14 @@
             <enabled>false</enabled>
           </snapshots>
           <id>central</id>
-          <name>libs-release</name>
-          <url>https://edshopdpt8.jfrog.io/artifactory/libs-release</url>
+          <name>libs-release-local</name>
+          <url>https://trial8hq0mq.jfrog.io/artifactory/libs-release-local</url>
         </pluginRepository>
         <pluginRepository>
           <snapshots />
           <id>snapshots</id>
-          <name>libs-snapshot</name>
-          <url>https://edshopdpt8.jfrog.io/artifactory/libs-snapshot</url>
+          <name>libs-release-local</name>
+          <url>https://trial8hq0mq.jfrog.io/artifactory/libs-release-local</url>
         </pluginRepository>
       </pluginRepositories>
       <id>artifactory</id>

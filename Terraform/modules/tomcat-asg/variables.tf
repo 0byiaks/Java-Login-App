@@ -57,8 +57,17 @@ variable "max_size" {
   default     = 4
 }
 
-variable "s3_bucket" {
-  description = "S3 bucket name for WAR file (expects app.war in root)"
+variable "aws_region" {
+  description = "AWS region for Secrets Manager"
   type        = string
 }
 
+variable "app_secrets_manager_secret_id" {
+  description = "Secrets Manager secret with jfrogusername and jfrogpassword"
+  type        = string
+}
+
+variable "jfrog_war_url" {
+  description = "Full HTTPS URL to the release WAR in Artifactory (Maven repo path)"
+  type        = string
+}
