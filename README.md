@@ -32,13 +32,13 @@ These diagrams are **design references**. This repo’s Terraform may differ in 
 
 #### Target pipeline & platform (reference)
 
-![Reference architecture: VPN, TGW, CI/CD, JFrog, NLB, multi-tier](docs/images/02-architecture-target-devops-pipeline.png)
+![Reference architecture: VPN, TGW, CI/CD, JFrog, NLB, multi-tier](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/02-architecture-target-devops-pipeline.png)
 
 *Illustrative target: Bitbucket/Maven/Sonar/JFrog, Transit Gateway, public NLB, internal balancing to app tier, RDS. Align mentally with this project’s GitHub → Maven EC2 → JFrog → Tomcat path.*
 
 #### Classic 3-tier VPC across two AZs (reference)
 
-![Reference: public / private app / private DB subnets across AZs](docs/images/03-architecture-3tier-vpc-az.png)
+![Reference: public / private app / private DB subnets across AZs](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/03-architecture-3tier-vpc-az.png)
 
 *Illustrative 3-tier layout. This project uses **NLBs** (not ALB) for load balancing; subnet and routing ideas are the same.*
 
@@ -344,6 +344,8 @@ The following items appear in older runbooks as **recommended** follow-ups; they
 
 Figures live under **`docs/images/`** in this repository. Captions describe the **staging** deployment shown in the captures; your account IDs, ARNs, and DNS names will differ.
 
+**Rendering on GitHub:** Each figure uses an absolute **`https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/...`** URL so the file is loaded as an image (not only as a repo file link). That requires the PNGs to be **committed and pushed** on branch **`main`**. If you fork this repo or rename the default branch, search-replace that base URL in this file (or switch back to relative paths like `docs/images/…`).
+
 ### Reference & conceptual architecture
 
 The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** reference diagrams appear [earlier in this document](#reference-architecture-diagrams), immediately after **Build & deploy path** (under **Overview**).
@@ -354,7 +356,7 @@ The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** ref
 
 #### VPC resource map
 
-![VPC resource map: IGW, NAT, public and private subnets, route tables](docs/images/04-vpc-resource-map.png)
+![VPC resource map: IGW, NAT, public and private subnets, route tables](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/04-vpc-resource-map.png)
 
 *`Stag-java-login-app-vpc`: subnets in **us-east-1a** / **us-east-1b**, Internet Gateway, NAT Gateway, route tables.*
 
@@ -364,25 +366,25 @@ The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** ref
 
 #### Public and internal NLBs
 
-![Two network load balancers: internet-facing and internal](docs/images/07-network-load-balancers.png)
+![Two network load balancers: internet-facing and internal](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/07-network-load-balancers.png)
 
 *Internet-facing NLB for user traffic; **internal** NLB in front of Tomcat (Nginx proxies to this DNS name on port 8080).*
 
 #### Public NLB details
 
-![Public NLB DNS name and AZ mappings](docs/images/06-public-nlb-details.png)
+![Public NLB DNS name and AZ mappings](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/06-public-nlb-details.png)
 
 *Use the **DNS name** (port 80) as the URL users hit. Staging uses **HTTP**; browsers may show “Not secure” until you add TLS (e.g. ACM + listener or a layer-7 LB).*
 
 #### Nginx target group (TCP 80)
 
-![Nginx target group healthy targets in two AZs](docs/images/08-target-group-nginx.png)
+![Nginx target group healthy targets in two AZs](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/08-target-group-nginx.png)
 
 *`Stag-java-login-app-nginx-tg`: two healthy instances behind the **public** NLB.*
 
 #### Tomcat target group (TCP 8080)
 
-![Tomcat target group healthy targets in two AZs](docs/images/09-target-group-tomcat.png)
+![Tomcat target group healthy targets in two AZs](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/09-target-group-tomcat.png)
 
 *`Stag-java-login-app-tomcat-tg`: two healthy Tomcat instances behind the **internal** NLB.*
 
@@ -392,19 +394,19 @@ The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** ref
 
 #### EC2 instances (overview)
 
-![EC2 instances: Tomcat, Nginx, bastion, Maven build, etc.](docs/images/05-ec2-instances.png)
+![EC2 instances: Tomcat, Nginx, bastion, Maven build, etc.](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/05-ec2-instances.png)
 
 *Mix of **public** (Nginx, bastion) and **private** (Tomcat, Maven) IPs; naming prefix **`Stag-java-login-app-`**.*
 
 #### Launch templates
 
-![Launch templates for Tomcat and Nginx ASGs](docs/images/10-launch-templates.png)
+![Launch templates for Tomcat and Nginx ASGs](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/10-launch-templates.png)
 
 *Separate templates per tier; **latest version** advances when Terraform updates AMI or user-data.*
 
 #### Golden AMIs
 
-![Private AMIs: global base, Tomcat, Maven, Nginx golden](docs/images/11-golden-amis.png)
+![Private AMIs: global base, Tomcat, Maven, Nginx golden](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/11-golden-amis.png)
 
 *Immutable images produced by Terraform **golden AMI** builders; ASGs launch from these AMIs.*
 
@@ -414,13 +416,13 @@ The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** ref
 
 #### RDS MySQL + Secrets Manager
 
-![RDS instance summary and master credentials in Secrets Manager](docs/images/13-rds-mysql-secrets-manager.png)
+![RDS instance summary and master credentials in Secrets Manager](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/13-rds-mysql-secrets-manager.png)
 
 *`stag-java-login-app-mysql-db`: MySQL in a **private** subnet; master password in **Secrets Manager** (used by Tomcat user-data and bastion/schema flows).*
 
 #### JFrog Artifactory (`dptweb-1.0.war`)
 
-![JFrog libs-release-local Maven path to dptweb-1.0.war](docs/images/12-jfrog-dptweb-war.png)
+![JFrog libs-release-local Maven path to dptweb-1.0.war](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/12-jfrog-dptweb-war.png)
 
 *`libs-release-local` / `com/devopsrealtime/dptweb/1.0/` — WAR Tomcat user-data downloads with JFrog credentials from Secrets Manager.*
 
@@ -430,13 +432,13 @@ The **Target pipeline & platform** and **Classic 3-tier VPC across two AZs** ref
 
 #### Tomcat user-data / cloud-init log
 
-![Cloud-init log: JFrog + RDS secrets, WAR download, Tomcat restart, health check](docs/images/14-tomcat-user-data-cloud-init.png)
+![Cloud-init log: JFrog + RDS secrets, WAR download, Tomcat restart, health check](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/14-tomcat-user-data-cloud-init.png)
 
 *Typical success path: fetch **JFrog** and **RDS** secrets, **curl** WAR from Artifactory, deploy **`ROOT.war`**, restart Tomcat, verify **HTTP 8080**.*
 
 ### App working over public NLB
 
-![Browser: welcome page after login via public NLB URL](docs/images/01-app-welcome-public-nlb.png)
+![Browser: welcome page after login via public NLB URL](https://raw.githubusercontent.com/0byiaks/Java-Login-App/main/docs/images/01-app-welcome-public-nlb.png)
 
 *End-to-end check: user reaches the app through **`Stag-java-login-app-public-nlb-...elb.us-east-1.amazonaws.com`** (HTTP).*
 
@@ -481,37 +483,6 @@ This implementation prioritizes:
 - **Simplicity for learning** — readable Terraform modules and explicit user-data steps.  
 - **Real-world architecture patterns** — golden AMIs, secrets in **Secrets Manager**, NLBs, ASGs, and a clear build vs runtime split.  
 - **Clear separation between build and runtime phases** — **CI** produces an immutable artifact in JFrog; **CD** applies it when Tomcat instances start.
-
----
-
-## Original quick reference (preserved)
-
-The bullets below mirror the earlier deployment guide structure for skim reading.
-
-### VPC deployment
-
-- Build **application VPC** and **bastion VPC** with IGW, NAT, routing, and **Transit Gateway** attachment.  
-- Restrict bastion access with **`admin_ip_cidr`** / security groups.
-
-### Bastion
-
-- Bastion in public subnet; SSH restricted (and/or use SSM).
-
-### Maven (build)
-
-- Maven EC2 uses **Maven Golden AMI**; clone repo; **`pom.xml`** defines **`distributionManagement`** for JFrog; runtime **`settings.xml`** is generated from Secrets Manager on the instance (do **not** commit real JFrog passwords to Git).  
-- Update **`application.properties`** JDBC URL for the target RDS; merge via your Git workflow; build with Maven (`deploy` publishes **`dptweb-1.0.war`**).
-
-### 3-tier summary
-
-- **RDS:** MySQL in private DB subnets; SG allows **3306** from application tier (and bastion as configured).  
-- **Tomcat:** Private NLB + ASG; user-data deploys WAR from JFrog; SG allows **8080** from NLB and admin paths as configured.  
-- **Nginx:** Public NLB + ASG in **application VPC public subnets**; user-data points **`proxy_pass`** at the **private** Tomcat NLB.
-
-### Application deployment
-
-- Primary artifact rollout: **Tomcat launch template user-data** downloads the WAR on **each new instance** / refresh cycle.  
-- DB schema: bastion automation and/or **`database/schema.sql`** per **`database/README.md`**.
 
 ---
 
