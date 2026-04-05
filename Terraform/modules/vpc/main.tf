@@ -179,12 +179,11 @@ resource "aws_security_group" "nginx_server_sg" {
   vpc_id = aws_vpc.vpc.id
 
   ingress {
-    description = "Allow HTTP traffic from the NLB"
+    description = "Allow HTTP traffic from the internet"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    security_groups = var.nlb_security_group_id != "" ? [var.nlb_security_group_id] : []
-    cidr_blocks = var.nlb_security_group_id == "" ? [var.vpc_cidr] : []
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -195,12 +194,37 @@ resource "aws_security_group" "nginx_server_sg" {
     cidr_blocks  = [var.bastion_subnet_cidr]
   }
 
+  # DNS required so nginx can resolve the private NLB upstream hostname at startup
+  egress {
+    description = "Allow DNS (UDP)"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow DNS (TCP)"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow outbound HTTPS (yum, SSM, AWS APIs)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description = "Allow outbound to private NLB/Tomcat (port 8080)"
-    from_port = 8080
-    to_port = 8080
-    protocol = "tcp"
-    cidr_blocks = [var.vpc_cidr]  # Allow traffic to the private NLB
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   tags = {
@@ -223,6 +247,17 @@ resource "aws_security_group" "tomcat_server_sg" {
     security_groups = [aws_security_group.nginx_server_sg.id]
   }
 
+  # NLBs do not have security groups — health check probes originate from
+  # NLB node IPs within the VPC private subnets (not from nginx SG).
+  # Allow the VPC CIDR so NLB health checks can reach port 8080.
+  ingress {
+    description = "Allow NLB health checks from within the VPC"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   ingress {
     description = "Allow SSH traffic from bastion host"
     from_port = 22
@@ -236,6 +271,15 @@ resource "aws_security_group" "tomcat_server_sg" {
     from_port = 443
     to_port = 443
     protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # yum uses port 80 for package metadata/downloads
+  egress {
+    description = "Allow outbound HTTP for yum package downloads"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 

@@ -147,3 +147,35 @@ output "tomcat_asg_name" {
   description = "Name of the Tomcat Auto Scaling Group"
   value       = module.tomcat_asg.tomcat_asg_name
 }
+
+# Public NLB Outputs (internet-facing, fronts Nginx ASG)
+output "public_nlb_dns_name" {
+  description = "DNS name of the public NLB for Nginx"
+  value       = module.public_nlb.public_nlb_dns_name
+}
+
+output "public_nlb_arn" {
+  description = "ARN of the public NLB"
+  value       = module.public_nlb.public_nlb_arn
+}
+
+output "nginx_target_group_arn" {
+  description = "ARN of the Nginx target group"
+  value       = module.public_nlb.nginx_target_group_arn
+}
+
+output "nginx_target_group_id" {
+  description = "ID of the Nginx target group"
+  value       = module.public_nlb.nginx_target_group_id
+}
+
+# Nginx ASG Outputs
+output "nginx_asg_id" {
+  description = "ID of the Nginx Auto Scaling Group"
+  value       = module.nginx_asg.nginx_asg_id
+}
+
+output "nginx_asg_name" {
+  description = "Name of the Nginx Auto Scaling Group"
+  value       = module.nginx_asg.nginx_asg_name
+}

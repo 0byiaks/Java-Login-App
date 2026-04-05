@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+exec > >(tee /var/log/nginx-golden-ami-build.log) 2>&1
 
 # ----------------------------------------------------------------------------
 # NGINX GOLDEN AMI CONFIGURATION SCRIPT
@@ -9,15 +10,19 @@ set -e
 # ----------------------------------------------------------------------------
 # STEP 1: INSTALL NGINX
 # ----------------------------------------------------------------------------
-echo "Installing Nginx..."
-yum install -y nginx
+echo "STEP1: Installing Nginx via amazon-linux-extras..."
+# nginx is not in the default AL2 yum repos — must use amazon-linux-extras
+amazon-linux-extras install -y nginx1
+
+# Verify nginx binary is present
+command -v nginx || { echo "ERROR: nginx binary not found after install"; exit 1; }
+nginx -v
+echo "STEP1: Nginx installed OK"
 
 # ----------------------------------------------------------------------------
 # STEP 2: CONFIGURE NGINX
 # ----------------------------------------------------------------------------
-# Create a basic nginx config without hardcoded backend IPs
-# Backend targets will be injected later via user data
-echo "Configuring Nginx..."
+echo "STEP2: Configuring Nginx..."
 
 cat > /etc/nginx/nginx.conf <<'NGINXCONF'
 user nginx;
@@ -30,7 +35,7 @@ events {
 }
 
 http {
-    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+    log_format main '$remote_addr - \$remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
                     '"$http_user_agent" "$http_x_forwarded_for"';
 
@@ -45,21 +50,18 @@ http {
     include             /etc/nginx/mime.types;
     default_type        application/octet-stream;
 
-    # Basic server block - backend will be configured via user data
     server {
         listen       80 default_server;
         listen       [::]:80 default_server;
         server_name  _;
         root         /usr/share/nginx/html;
 
-        # Health check endpoint
         location /health {
             access_log off;
             return 200 "healthy\n";
             add_header Content-Type text/plain;
         }
 
-        # Default location
         location / {
             root /usr/share/nginx/html;
             index index.html index.htm;
@@ -74,40 +76,36 @@ http {
 }
 NGINXCONF
 
+echo "STEP2: Nginx configured OK"
+
 # ----------------------------------------------------------------------------
 # STEP 3: VALIDATE NGINX CONFIGURATION
 # ----------------------------------------------------------------------------
-echo "Validating Nginx configuration..."
+echo "STEP3: Validating Nginx configuration..."
 nginx -t
+echo "STEP3: Config valid"
 
 # ----------------------------------------------------------------------------
-# STEP 4: ENABLE NGINX TO START ON BOOT
+# STEP 4: ENABLE AND START NGINX
 # ----------------------------------------------------------------------------
-echo "Enabling Nginx to start on boot..."
+echo "STEP4: Enabling Nginx to start on boot..."
 systemctl enable nginx
 
-# ----------------------------------------------------------------------------
-# STEP 5: START NGINX
-# ----------------------------------------------------------------------------
-echo "Starting Nginx..."
+echo "STEP4: Starting Nginx..."
 systemctl start nginx
-
-# ----------------------------------------------------------------------------
-# STEP 6: VERIFY NGINX IS RUNNING
-# ----------------------------------------------------------------------------
-echo "Verifying Nginx is running..."
+sleep 5
 systemctl status nginx
+echo "STEP4: Nginx started OK"
 
 # ----------------------------------------------------------------------------
-# STEP 7: TEST NGINX RESPONSE
+# STEP 5: VERIFY HTTP RESPONSE
 # ----------------------------------------------------------------------------
-echo "Testing Nginx response..."
-curl -f http://localhost/health || echo "Health check failed, but continuing..."
+echo "STEP5: Testing Nginx health endpoint..."
+curl -f http://localhost/health || echo "STEP5: Health check returned non-200 (may be OK at bake time)"
 
 # ----------------------------------------------------------------------------
-# STEP 8: SIGNAL COMPLETION
+# STEP 6: SIGNAL COMPLETION
 # ----------------------------------------------------------------------------
 echo "Nginx Golden AMI configuration completed successfully"
 touch /tmp/nginx-golden-ami-ready
 echo "Configuration completed at: $(date)" >> /tmp/nginx-golden-ami-ready
-

@@ -61,6 +61,16 @@ module "nlb" {
   private_subnet_ids = module.vpc.private_app_subnet_ids # Private app subnets in AZ 1a and 1b
 }
 
+# Public NLB for Nginx (internet-facing)
+module "public_nlb" {
+  source = "./modules/public-nlb"
+
+  environment       = var.environment
+  project_name      = var.project_name
+  vpc_id            = module.vpc.vpc_id
+  public_subnet_ids = module.vpc.public_subnet_ids
+}
+
 # Tomcat Auto Scaling Group
 module "tomcat_asg" {
   source = "./modules/tomcat-asg"
@@ -79,8 +89,29 @@ module "tomcat_asg" {
   aws_region                    = var.aws_region
   app_secrets_manager_secret_id = var.maven_build_app_secret_name
   jfrog_war_url                 = var.tomcat_jfrog_war_url
+  rds_secret_arn                = module.rds.master_user_secret_arn
 
-  depends_on = [module.tomcat_golden_ami, module.nlb]
+  depends_on = [module.tomcat_golden_ami, module.nlb, module.rds]
+}
+
+# Nginx Auto Scaling Group (private subnets, fronted by public NLB)
+module "nginx_asg" {
+  source = "./modules/nginx-asg"
+
+  environment               = var.environment
+  project_name              = var.project_name
+  nginx_golden_ami_id       = module.nginx_golden_ami.nginx_golden_ami_id
+  nginx_security_group_id   = module.vpc.nginx_security_group_id
+  iam_instance_profile_name = module.ami.iam_instance_profile_name
+  private_subnet_ids        = module.vpc.public_subnet_ids
+  target_group_arn          = module.public_nlb.nginx_target_group_arn
+  private_nlb_dns_name      = module.nlb.nlb_dns_name
+  instance_type             = var.nginx_instance_type
+  desired_capacity          = 2
+  min_size                  = 1
+  max_size                  = 4
+
+  depends_on = [module.nginx_golden_ami, module.public_nlb, module.nlb]
 }
 
 
@@ -105,7 +136,10 @@ module "ami" {
   instance_type    = var.ami_builder_instance_type
   aws_region       = var.aws_region
 
-  secretsmanager_secret_arns = length(data.aws_secretsmanager_secret.maven_build) > 0 ? [data.aws_secretsmanager_secret.maven_build[0].arn] : []
+  secretsmanager_secret_arns = compact(concat(
+    length(data.aws_secretsmanager_secret.maven_build) > 0 ? [data.aws_secretsmanager_secret.maven_build[0].arn] : [],
+    [module.rds.master_user_secret_arn]
+  ))
 }
 
 # Nginx Golden AMI Builder Module

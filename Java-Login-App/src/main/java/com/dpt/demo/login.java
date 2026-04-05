@@ -23,7 +23,7 @@ public class login {
 	@Value("${spring.datasource.username}")
 	private String DBusername;
 
-	@Value("${spring.datasource.password}")
+	@Value("${spring.datasource.password:}")
 	private String DBpassword;
 
 	private String userId = "";

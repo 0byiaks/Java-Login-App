@@ -93,6 +93,12 @@ variable "tomcat_instance_type" {
   default     = "t3.micro"
 }
 
+variable "nginx_instance_type" {
+  description = "Instance type for Nginx instances"
+  type        = string
+  default     = "t3.micro"
+}
+
 variable "tomcat_jfrog_war_url" {
   description = "HTTPS URL to the release WAR in JFrog (Maven path under libs-release-local)"
   type        = string

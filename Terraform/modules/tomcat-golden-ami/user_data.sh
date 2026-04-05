@@ -1,105 +1,97 @@
 #!/bin/bash
 set -e
+exec > >(tee /var/log/tomcat-golden-ami-build.log) 2>&1
 
 # ----------------------------------------------------------------------------
 # TOMCAT GOLDEN AMI CONFIGURATION SCRIPT
-# This script installs and configures Tomcat on the global base AMI
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
 # STEP 1: INSTALL JDK 11
 # ----------------------------------------------------------------------------
-echo "Installing JDK 11..."
-yum install -y java-11-amazon-corretto-devel
+echo "STEP1: Installing JDK 11 via amazon-linux-extras..."
+amazon-linux-extras install -y java-openjdk11
 
-# Verify Java installation
+JAVA_HOME=$(readlink -f /usr/bin/java | sed 's|/bin/java||')
+export JAVA_HOME
+export PATH=$JAVA_HOME/bin:$PATH
 java -version
+echo "STEP1: JDK 11 OK — JAVA_HOME=$JAVA_HOME"
 
 # ----------------------------------------------------------------------------
 # STEP 2: INSTALL APACHE TOMCAT
 # ----------------------------------------------------------------------------
-echo "Installing Apache Tomcat..."
-yum install -y tomcat tomcat-webapps tomcat-admin-webapps
+echo "STEP2: Installing Apache Tomcat via amazon-linux-extras..."
+amazon-linux-extras install -y tomcat8.5
+
+test -d /var/lib/tomcat/webapps || { echo "ERROR: /var/lib/tomcat/webapps missing after install"; rpm -qa | grep tomcat; exit 1; }
+echo "STEP2: Tomcat OK — webapps at /var/lib/tomcat/webapps"
 
 # ----------------------------------------------------------------------------
-# STEP 3: INSTALL MYSQL CLIENT
+# STEP 3: SET JAVA_HOME FOR TOMCAT SERVICE
+# The RPM-provided tomcat.service sources /etc/sysconfig/tomcat for env vars.
+# We must set JAVA_HOME there so the service can find Java on boot.
+# Do NOT create a custom /etc/systemd/system/tomcat.service — the RPM one
+# already handles PID files, tmpfiles.d, and startup correctly.
 # ----------------------------------------------------------------------------
-echo "Installing MySQL client..."
+echo "STEP3: Setting JAVA_HOME in /etc/sysconfig/tomcat..."
+# Uncomment existing JAVA_HOME line if present, otherwise append
+if grep -q "^#JAVA_HOME=" /etc/sysconfig/tomcat 2>/dev/null; then
+  sed -i "s|^#JAVA_HOME=.*|JAVA_HOME=$JAVA_HOME|" /etc/sysconfig/tomcat
+elif grep -q "^JAVA_HOME=" /etc/sysconfig/tomcat 2>/dev/null; then
+  sed -i "s|^JAVA_HOME=.*|JAVA_HOME=$JAVA_HOME|" /etc/sysconfig/tomcat
+else
+  echo "JAVA_HOME=$JAVA_HOME" >> /etc/sysconfig/tomcat
+fi
+echo "STEP3: JAVA_HOME set to $JAVA_HOME"
+
+# ----------------------------------------------------------------------------
+# STEP 4: INSTALL MYSQL CLIENT
+# ----------------------------------------------------------------------------
+echo "STEP4: Installing MySQL client..."
 yum install -y mysql
+echo "STEP4: MySQL client OK"
 
 # ----------------------------------------------------------------------------
-# STEP 4: CONFIGURE TOMCAT AS SYSTEMD SERVICE
+# STEP 5: CLEAN UP STALE SYSTEMD OVERRIDE AND ENABLE TOMCAT
+# Remove any /etc/systemd/system/tomcat.service that may have been baked from
+# a prior AMI iteration — it overrides the RPM-provided service file and can
+# reference paths that don't exist (e.g. /usr/share/tomcat/bin/startup.sh).
+# The RPM-provided file at /usr/lib/systemd/system/tomcat.service is correct.
 # ----------------------------------------------------------------------------
-echo "Configuring Tomcat systemd service..."
+echo "STEP5: Removing stale systemd override (if any)..."
+rm -f /etc/systemd/system/tomcat.service
 
-# Create systemd service file for Tomcat
-cat > /etc/systemd/system/tomcat.service <<'TOMCATSERVICE'
-[Unit]
-Description=Apache Tomcat Web Application Container
-After=network.target
+echo "STEP5: Verifying Tomcat install layout..."
+find /usr/share/tomcat /var/lib/tomcat /usr/libexec/tomcat 2>/dev/null | head -40 || true
+echo "--- RPM service file ---"
+cat /usr/lib/systemd/system/tomcat.service 2>/dev/null || echo "RPM service file not found at /usr/lib/systemd/system/tomcat.service"
+echo "--- /etc/sysconfig/tomcat ---"
+cat /etc/sysconfig/tomcat 2>/dev/null || echo "No /etc/sysconfig/tomcat"
 
-[Service]
-Type=forking
-
-Environment="JAVA_HOME=/usr/lib/jvm/java-11-amazon-corretto"
-Environment="CATALINA_PID=/var/run/tomcat/tomcat.pid"
-Environment="CATALINA_HOME=/usr/share/tomcat"
-Environment="CATALINA_BASE=/usr/share/tomcat"
-Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
-Environment="JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom"
-
-ExecStart=/usr/share/tomcat/bin/startup.sh
-ExecStop=/bin/kill -15 $MAINPID
-
-User=tomcat
-Group=tomcat
-UMask=0007
-RestartSec=10
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-TOMCATSERVICE
-
-# Create necessary directories
-mkdir -p /var/run/tomcat
-chown tomcat:tomcat /var/run/tomcat
-
-# Set permissions
-chown -R tomcat:tomcat /usr/share/tomcat
-chown -R tomcat:tomcat /var/log/tomcat
-chown -R tomcat:tomcat /var/cache/tomcat
-
-# ----------------------------------------------------------------------------
-# STEP 5: ENABLE TOMCAT TO START ON BOOT
-# ----------------------------------------------------------------------------
-echo "Enabling Tomcat to start on boot..."
+echo "STEP5: Enabling Tomcat service..."
 systemctl daemon-reload
 systemctl enable tomcat
+echo "STEP5: Tomcat enabled OK"
 
 # ----------------------------------------------------------------------------
-# STEP 6: START TOMCAT
+# STEP 6: START TOMCAT AND VERIFY
 # ----------------------------------------------------------------------------
-echo "Starting Tomcat..."
+echo "STEP6: Starting Tomcat..."
 systemctl start tomcat
-
-# ----------------------------------------------------------------------------
-# STEP 7: VERIFY TOMCAT IS RUNNING
-# ----------------------------------------------------------------------------
-echo "Verifying Tomcat is running..."
 sleep 10
 systemctl status tomcat
+echo "STEP6: Tomcat started OK"
 
 # ----------------------------------------------------------------------------
-# STEP 8: TEST TOMCAT RESPONSE
+# STEP 7: TEST HTTP RESPONSE
 # ----------------------------------------------------------------------------
-echo "Testing Tomcat response..."
-curl -f http://localhost:8080 || echo "Tomcat health check failed, but continuing..."
+echo "STEP7: Testing Tomcat HTTP response..."
+curl -f http://localhost:8080 || echo "Tomcat HTTP check: no default page (expected — no webapps deployed yet)"
 
 # ----------------------------------------------------------------------------
-# STEP 9: SIGNAL COMPLETION
+# STEP 8: SIGNAL COMPLETION
 # ----------------------------------------------------------------------------
 echo "Tomcat Golden AMI configuration completed successfully"
 touch /tmp/tomcat-golden-ami-ready
 echo "Configuration completed at: $(date)" >> /tmp/tomcat-golden-ami-ready
-

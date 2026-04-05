@@ -80,3 +80,6 @@ DESCRIBE Employee;
 - Credentials are managed by AWS Secrets Manager
 - Never hardcode credentials in application code
 
+curl -v http://Stag-java-login-app-public-nlb-29d3f9c9f8607084.elb.us-east-1.amazonaws.com/
+
+http://Stag-java-login-app-public-nlb-29d3f9c9f8607084.elb.us-east-1.amazonaws.com/login

@@ -61,12 +61,16 @@ resource "aws_instance" "tomcat_golden_ami_builder" {
 resource "time_sleep" "wait_for_tomcat_configuration" {
   depends_on = [aws_instance.tomcat_golden_ami_builder]
 
-  create_duration = "3m"
+  create_duration = "10m"
 }
 
 # Restart instance to validate Tomcat starts on boot
 resource "null_resource" "restart_instance" {
   depends_on = [time_sleep.wait_for_tomcat_configuration]
+
+  triggers = {
+    instance_id = aws_instance.tomcat_golden_ami_builder.id
+  }
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -86,6 +90,10 @@ resource "time_sleep" "wait_after_restart" {
 # Stop the instance before creating AMI
 resource "null_resource" "stop_instance" {
   depends_on = [time_sleep.wait_after_restart]
+
+  triggers = {
+    instance_id = aws_instance.tomcat_golden_ami_builder.id
+  }
 
   provisioner "local-exec" {
     command = <<-EOT

@@ -71,3 +71,8 @@ variable "jfrog_war_url" {
   description = "Full HTTPS URL to the release WAR in Artifactory (Maven repo path)"
   type        = string
 }
+
+variable "rds_secret_arn" {
+  description = "Secrets Manager ARN for RDS master user (manage_master_user_password JSON with password key)"
+  type        = string
+}
