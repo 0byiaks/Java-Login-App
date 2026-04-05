@@ -42,6 +42,15 @@ resource "aws_autoscaling_group" "tomcat_asg" {
     version = "$Latest"
   }
 
+  # Replace instances when launch template (e.g. user_data) changes so Secrets Manager + systemd wiring runs.
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 120
+    }
+  }
+
   tag {
     key                 = "Name"
     value               = "${var.environment}-${var.project_name}-tomcat"

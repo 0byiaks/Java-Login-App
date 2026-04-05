@@ -49,17 +49,31 @@ aws s3 cp $S3_BUCKET_URI /tmp/schema.sql || {
 # STEP 5: GET DATABASE CREDENTIALS FROM SECRETS MANAGER
 # ----------------------------------------------------------------------------
 echo "Getting database credentials from Secrets Manager..."
-SECRET=$(aws secretsmanager get-secret-value --secret-id $RDS_SECRET_ARN --region $AWS_REGION --query SecretString --output text)
-DB_PASSWORD=$(echo $SECRET | jq -r '.password')
+SECRET=$(aws secretsmanager get-secret-value --secret-id "$RDS_SECRET_ARN" --region "$AWS_REGION" --query SecretString --output text)
+DB_PASSWORD=$(echo "$SECRET" | jq -r '.password')
+
+if [ -z "$DB_PASSWORD" ]; then
+  echo "ERROR: Could not read .password from secret $RDS_SECRET_ARN"
+  exit 1
+fi
+echo "RDS password fetched OK"
+
+# Write password to MySQL config file to avoid # being treated as comment
+# by the MySQL config file parser when password contains # characters.
+printf '[client]\npassword="%s"\n' "$DB_PASSWORD" > /tmp/.my.cnf
+chmod 600 /tmp/.my.cnf
 
 # ----------------------------------------------------------------------------
 # STEP 6: RUN SQL SCRIPT ON RDS
 # ----------------------------------------------------------------------------
+# Connect without specifying a database — schema.sql handles CREATE DATABASE + USE UserDB
 echo "Running database schema script on RDS..."
-mysql -h $RDS_ENDPOINT -u $DB_USERNAME -p"$DB_PASSWORD" $DB_NAME < /tmp/schema.sql || {
+mysql --defaults-extra-file=/tmp/.my.cnf -h "$RDS_ENDPOINT" -u "$DB_USERNAME" < /tmp/schema.sql || {
   echo "Failed to execute SQL script"
+  rm -f /tmp/.my.cnf
   exit 1
 }
+rm -f /tmp/.my.cnf
 
 # ----------------------------------------------------------------------------
 # STEP 6: SIGNAL COMPLETION
