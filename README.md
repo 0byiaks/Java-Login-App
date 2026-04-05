@@ -484,6 +484,37 @@ This implementation prioritizes:
 
 ---
 
+## Original quick reference (preserved)
+
+The bullets below mirror the earlier deployment guide structure for skim reading.
+
+### VPC deployment
+
+- Build **application VPC** and **bastion VPC** with IGW, NAT, routing, and **Transit Gateway** attachment.  
+- Restrict bastion access with **`admin_ip_cidr`** / security groups.
+
+### Bastion
+
+- Bastion in public subnet; SSH restricted (and/or use SSM).
+
+### Maven (build)
+
+- Maven EC2 uses **Maven Golden AMI**; clone repo; **`pom.xml`** defines **`distributionManagement`** for JFrog; runtime **`settings.xml`** is generated from Secrets Manager on the instance (do **not** commit real JFrog passwords to Git).  
+- Update **`application.properties`** JDBC URL for the target RDS; merge via your Git workflow; build with Maven (`deploy` publishes **`dptweb-1.0.war`**).
+
+### 3-tier summary
+
+- **RDS:** MySQL in private DB subnets; SG allows **3306** from application tier (and bastion as configured).  
+- **Tomcat:** Private NLB + ASG; user-data deploys WAR from JFrog; SG allows **8080** from NLB and admin paths as configured.  
+- **Nginx:** Public NLB + ASG in **application VPC public subnets**; user-data points **`proxy_pass`** at the **private** Tomcat NLB.
+
+### Application deployment
+
+- Primary artifact rollout: **Tomcat launch template user-data** downloads the WAR on **each new instance** / refresh cycle.  
+- DB schema: bastion automation and/or **`database/schema.sql`** per **`database/README.md`**.
+
+---
+
 ## Contact
 
 austinbale667@gmail.com
